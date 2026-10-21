@@ -1,0 +1,104 @@
+name: Live API Health Check & Validation
+
+on:
+  schedule:
+    # Jeden Tag um 03:00 UTC
+    - cron: '0 3 * * *'
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Test Node Client (v${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x, 22.x]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: 1. Verify Leitweg-ID Algorithm (MOD 97-10)
+        run: |
+          node -e '
+            const { ZugferdClient } = require("./dist/index.js");
+            const res = ZugferdClient.calculateLeitwegId("04011000-1234512345-06");
+            if (!res.is_valid) throw new Error("Leitweg-ID should be valid");
+            if (res.region !== "Freie Hansestadt Bremen (04)") throw new Error("Region mismatch");
+            console.log("Leitweg-ID check passed:", res);
+          '
+
+      - name: 2. Test ESM & CJS Imports
+        run: |
+          node --input-type=module -e '
+            import { ZugferdClient } from "./dist/index.mjs";
+            const client = new ZugferdClient();
+            if (typeof client.generateInvoice !== "function") throw new Error("generateInvoice missing");
+            console.log("ESM import check passed!");
+          '
+
+      - name: 3. Generate ZUGFeRD 2.2 Invoice against Live API
+        env:
+          ZUGFERD_INTERNAL_CI: "true"
+        run: |
+          node --input-type=module -e '
+            import { ZugferdClient } from "./dist/index.mjs";
+            import * as fs from "node:fs/promises";
+            
+            const client = new ZugferdClient({
+              apiKey: "zg_test_ouroboros_001",
+              headers: { "X-Internal-Check": "true", "ZUGFERD_INTERNAL_CI": "1" }
+            });
+
+            async function run() {
+              const pdf = await client.generateInvoice({
+                invoice_number: "RE-2026-NPM-CI",
+                issue_date: "2026-10-21",
+                currency: "EUR",
+                seller: {
+                  name: "NPM CI Test GmbH",
+                  street: "Teststr. 1",
+                  zip_code: "10115",
+                  city: "Berlin",
+                  country: "DE",
+                  vat_id: "DE123456789",
+                  iban: "DE12345678901234567890"
+                },
+                buyer: {
+                  name: "NPM CI Buyer AG",
+                  street: "Kaufallee 2",
+                  zip_code: "80331",
+                  city: "München",
+                  country: "DE"
+                },
+                line_items: [
+                  {
+                    description: "NPM CI Automated Test Item",
+                    quantity: 1,
+                    unit_price: 100,
+                    tax_rate_percent: 19
+                  }
+                ]
+              });
+
+              if (!pdf || pdf.byteLength < 1000) throw new Error("Invalid PDF response");
+              console.log("Invoice generated successfully:", pdf.byteLength, "bytes");
+
+              // Validate
+              const val = await client.validateInvoice(pdf, "test.pdf");
+              if (!val.is_valid) throw new Error("Validation failed: " + JSON.stringify(val.errors));
+              console.log("Validation passed:", val.format_detected);
+            }
+
+            run();
+          '

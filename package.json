@@ -1,0 +1,46 @@
+{
+  "name": "zugferd-client",
+  "version": "0.1.0",
+  "description": "Offizieller TypeScript & Node.js Client für die E-Rechnung API (ZUGFeRD 2.2 / Factur-X & XRechnung nach EN 16931)",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "zugferd",
+    "factur-x",
+    "xrechnung",
+    "e-rechnung",
+    "en16931",
+    "invoice",
+    "pdf-a3",
+    "typescript",
+    "node",
+    "billing",
+    "nextjs"
+  ],
+  "author": "E-Rechnung Cloud API <support@e-rechnung-cloud.de>",
+  "license": "MIT",
+  "homepage": "https://e-rechnung-cloud.de",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/andregrunert-ctrl/zugferd-node-client.git"
+  },
+  "bugs": {
+    "url": "https://github.com/andregrunert-ctrl/zugferd-node-client/issues"
+  }
+}
