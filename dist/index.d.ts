@@ -55,11 +55,13 @@ export interface LeitwegIdResult {
 export interface ClientOptions {
     apiKey?: string;
     baseUrl?: string;
+    headers?: Record<string, string>;
 }
 export declare const LEITWEG_REGIONS: Record<string, string>;
 export declare class ZugferdClient {
     apiKey: string;
     baseUrl: string;
+    headers: Record<string, string>;
     constructor(options?: ClientOptions);
     private getHeaders;
     generateInvoice(data: InvoiceRequest): Promise<Uint8Array>;

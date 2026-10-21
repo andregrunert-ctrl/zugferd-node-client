@@ -62,6 +62,7 @@ export interface LeitwegIdResult {
 export interface ClientOptions {
   apiKey?: string;
   baseUrl?: string;
+  headers?: Record<string, string>;
 }
 
 export const LEITWEG_REGIONS: Record<string, string> = {
@@ -87,16 +88,23 @@ export const LEITWEG_REGIONS: Record<string, string> = {
 export class ZugferdClient {
   public apiKey: string;
   public baseUrl: string;
+  public headers: Record<string, string>;
 
   constructor(options: ClientOptions = {}) {
     this.apiKey = options.apiKey || "zg_test_ouroboros_001";
     this.baseUrl = (options.baseUrl || "https://e-rechnung-cloud.de").replace(/\/+$/, "");
+    this.headers = options.headers || {};
   }
 
   private getHeaders(contentType?: string): Record<string, string> {
     const headers: Record<string, string> = {
-      "X-API-Key": this.apiKey
+      "User-Agent": "zugferd-client-node/0.1.1",
+      "X-API-Key": this.apiKey,
+      ...this.headers
     };
+    if (typeof process !== "undefined" && process?.env && (process.env.ZUGFERD_INTERNAL_CI === "1" || process.env.ZUGFERD_INTERNAL_CI === "true")) {
+      headers["X-Internal-Check"] = "true";
+    }
     if (contentType) {
       headers["Content-Type"] = contentType;
     }
@@ -141,7 +149,7 @@ export class ZugferdClient {
     const formData = new FormData();
 
     const blob = pdfFile instanceof Blob ? pdfFile : new Blob([pdfFile], { type: "application/pdf" });
-    formData.append("pdf_file", blob, "source.pdf");
+    formData.append("file", blob, "source.pdf");
     formData.append("invoice_data", JSON.stringify(data));
 
     const response = await fetch(url, {

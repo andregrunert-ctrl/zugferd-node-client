@@ -1,6 +1,6 @@
 {
   "name": "zugferd-client",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Offizieller TypeScript & Node.js Client für die E-Rechnung API (ZUGFeRD 2.2 / Factur-X & XRechnung nach EN 16931)",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

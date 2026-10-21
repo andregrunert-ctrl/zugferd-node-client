@@ -22,12 +22,18 @@ class ZugferdClient {
   constructor(options = {}) {
     this.apiKey = options.apiKey || "zg_test_ouroboros_001";
     this.baseUrl = (options.baseUrl || "https://e-rechnung-cloud.de").replace(/\/+$/, "");
+    this.headers = options.headers || {};
   }
 
   getHeaders(contentType) {
     const headers = {
-      "X-API-Key": this.apiKey
+      "User-Agent": "zugferd-client-node/0.1.1",
+      "X-API-Key": this.apiKey,
+      ...this.headers
     };
+    if (typeof process !== "undefined" && process?.env && (process.env.ZUGFERD_INTERNAL_CI === "1" || process.env.ZUGFERD_INTERNAL_CI === "true")) {
+      headers["X-Internal-Check"] = "true";
+    }
     if (contentType) {
       headers["Content-Type"] = contentType;
     }
@@ -75,7 +81,7 @@ class ZugferdClient {
       ? pdfFile 
       : new Blob([pdfFile], { type: "application/pdf" });
       
-    formData.append("pdf_file", blob, "source.pdf");
+    formData.append("file", blob, "source.pdf");
     formData.append("invoice_data", JSON.stringify(data));
 
     const response = await fetch(url, {
