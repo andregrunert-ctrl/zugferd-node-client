@@ -136,6 +136,18 @@ console.log(result.check);    // 06
 
 ---
 
+## 🔑 Eigener API-Key & Produktion (Sofort-Upgrade ohne Abo)
+
+Für produktive Rechnungen **ohne Test-Wasserzeichen** und mit vollem Rate-Limit (`100 Req/Min`) holst du dir deinen persönlichen API-Key (z. B. **100 Rechnungen für 10 € Prepaid – kein Abo!**) direkt unter [**https://e-rechnung-cloud.de/#pricing**](https://e-rechnung-cloud.de/#pricing):
+
+```typescript
+const client = new ZugferdClient({
+  apiKey: process.env.ZUGFERD_API_KEY // zg_live_...
+});
+```
+
+---
+
 ## 🛡️ Rechtlicher Hinweis (§ 23 MarkenG)
 
 ZUGFeRD ist eine eingetragene Marke der AWV e.V. Dieses Projekt ist unabhängig. Die Nennung der Marke erfolgt ausschließlich zur beschreibenden Angabe der Formatkompatibilität im Sinne von § 23 Abs. 1 Nr. 3 MarkenG.

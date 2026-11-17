@@ -63,7 +63,10 @@ export interface ClientOptions {
   apiKey?: string;
   baseUrl?: string;
   headers?: Record<string, string>;
+  suppressTestWarning?: boolean;
 }
+
+export const DEFAULT_UPGRADE_URL = "https://e-rechnung-cloud.de/#pricing";
 
 export const LEITWEG_REGIONS: Record<string, string> = {
   "01": "Schleswig-Holstein",
@@ -89,26 +92,51 @@ export class ZugferdClient {
   public apiKey: string;
   public baseUrl: string;
   public headers: Record<string, string>;
+  public isTestMode: boolean;
 
   constructor(options: ClientOptions = {}) {
     this.apiKey = options.apiKey || "zg_test_ouroboros_001";
     this.baseUrl = (options.baseUrl || "https://e-rechnung-cloud.de").replace(/\/+$/, "");
     this.headers = options.headers || {};
+    this.isTestMode =
+      this.apiKey === "zg_test_ouroboros_001" ||
+      this.apiKey === "api_key_test_public" ||
+      this.apiKey.startsWith("zg_test_");
+
+    const isInternalCi =
+      typeof globalThis !== "undefined" &&
+      (globalThis as any).process?.env &&
+      ((globalThis as any).process.env.ZUGFERD_INTERNAL_CI === "1" ||
+        (globalThis as any).process.env.ZUGFERD_INTERNAL_CI === "true");
+    if (this.isTestMode && !options.suppressTestWarning && !isInternalCi && typeof console !== "undefined") {
+      console.warn(
+        `[zugferd-client] Kostenloser Testmodus aktiv (Test-Wasserzeichen & 5 Req/Min). Live-API-Key ohne Wasserzeichen (100 Rechnungen für 10 € ohne Abo): ${DEFAULT_UPGRADE_URL}`
+      );
+    }
   }
 
   private getHeaders(contentType?: string): Record<string, string> {
     const headers: Record<string, string> = {
-      "User-Agent": "zugferd-client-node/0.1.1",
+      "User-Agent": "zugferd-client-node/0.1.2",
       "X-API-Key": this.apiKey,
       ...this.headers
     };
-    if (typeof process !== "undefined" && process?.env && (process.env.ZUGFERD_INTERNAL_CI === "1" || process.env.ZUGFERD_INTERNAL_CI === "true")) {
+    const procEnv = typeof globalThis !== "undefined" ? (globalThis as any).process?.env : undefined;
+    if (procEnv && (procEnv.ZUGFERD_INTERNAL_CI === "1" || procEnv.ZUGFERD_INTERNAL_CI === "true")) {
       headers["X-Internal-Check"] = "true";
     }
     if (contentType) {
       headers["Content-Type"] = contentType;
     }
     return headers;
+  }
+
+  private buildHttpError(action: string, status: number, errorText: string): Error {
+    const upgradeHint =
+      status === 401 || status === 402 || status === 429
+        ? ` -> Live-API-Key / Guthaben ohne Abo holen (100 Rechnungen für 10 €): ${DEFAULT_UPGRADE_URL}`
+        : "";
+    return new Error(`Fehler bei ${action} (${status}): ${errorText}${upgradeHint}`);
   }
 
   public async generateInvoice(data: InvoiceRequest): Promise<Uint8Array> {
@@ -121,7 +149,7 @@ export class ZugferdClient {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Fehler bei ZUGFeRD-Generierung (${response.status}): ${errorText}`);
+      throw this.buildHttpError("ZUGFeRD-Generierung", response.status, errorText);
     }
 
     const buffer = await response.arrayBuffer();
@@ -138,7 +166,7 @@ export class ZugferdClient {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Fehler bei XRechnung-Generierung (${response.status}): ${errorText}`);
+      throw this.buildHttpError("XRechnung-Generierung", response.status, errorText);
     }
 
     return await response.text();
@@ -148,7 +176,7 @@ export class ZugferdClient {
     const url = `${this.baseUrl}/v1/invoice/embed`;
     const formData = new FormData();
 
-    const blob = pdfFile instanceof Blob ? pdfFile : new Blob([pdfFile], { type: "application/pdf" });
+    const blob = pdfFile instanceof Blob ? pdfFile : new Blob([pdfFile as BlobPart], { type: "application/pdf" });
     formData.append("file", blob, "source.pdf");
     formData.append("invoice_data", JSON.stringify(data));
 
@@ -160,7 +188,7 @@ export class ZugferdClient {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Fehler bei ZUGFeRD-Einbettung (${response.status}): ${errorText}`);
+      throw this.buildHttpError("ZUGFeRD-Einbettung", response.status, errorText);
     }
 
     const buffer = await response.arrayBuffer();
@@ -172,7 +200,7 @@ export class ZugferdClient {
     const formData = new FormData();
 
     const contentType = filename.toLowerCase().endsWith(".xml") ? "application/xml" : "application/pdf";
-    const blob = file instanceof Blob ? file : new Blob([file], { type: contentType });
+    const blob = file instanceof Blob ? file : new Blob([file as BlobPart], { type: contentType });
     formData.append("file", blob, filename);
 
     const response = await fetch(url, {
@@ -180,6 +208,11 @@ export class ZugferdClient {
       headers: this.getHeaders(),
       body: formData
     });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw this.buildHttpError("E-Rechnung-Validierung", response.status, errorText);
+    }
 
     return (await response.json()) as ValidationResponse;
   }
@@ -193,7 +226,7 @@ export class ZugferdClient {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Fehler bei Statusabfrage (${response.status}): ${errorText}`);
+      throw this.buildHttpError("Statusabfrage", response.status, errorText);
     }
 
     return (await response.json()) as BillingStatusResponse;

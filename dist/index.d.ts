@@ -56,14 +56,18 @@ export interface ClientOptions {
     apiKey?: string;
     baseUrl?: string;
     headers?: Record<string, string>;
+    suppressTestWarning?: boolean;
 }
+export declare const DEFAULT_UPGRADE_URL = "https://e-rechnung-cloud.de/#pricing";
 export declare const LEITWEG_REGIONS: Record<string, string>;
 export declare class ZugferdClient {
     apiKey: string;
     baseUrl: string;
     headers: Record<string, string>;
+    isTestMode: boolean;
     constructor(options?: ClientOptions);
     private getHeaders;
+    private buildHttpError;
     generateInvoice(data: InvoiceRequest): Promise<Uint8Array>;
     generateXRechnung(data: InvoiceRequest): Promise<string>;
     embedInvoice(pdfFile: Blob | Uint8Array | ArrayBuffer, data: InvoiceRequest): Promise<Uint8Array>;
