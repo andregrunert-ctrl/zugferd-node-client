@@ -36,7 +36,7 @@ export class ZugferdClient {
             (globalThis.process.env.ZUGFERD_INTERNAL_CI === "1" ||
                 globalThis.process.env.ZUGFERD_INTERNAL_CI === "true");
         if (this.isTestMode && !options.suppressTestWarning && !isInternalCi && typeof console !== "undefined") {
-            console.warn(`[zugferd-client] Kostenloser Testmodus aktiv (Test-Wasserzeichen & 5 Req/Min). Live-API-Key ohne Wasserzeichen (100 Rechnungen für 10 € ohne Abo): ${DEFAULT_UPGRADE_URL}`);
+            console.warn(`[zugferd-client] Limit reached / Free Tier. Get your production API Key at: https://e-rechnung-cloud.de (Test-Wasserzeichen & 5 Req/Min aktiv)`);
         }
     }
     getHeaders(contentType) {
@@ -56,7 +56,7 @@ export class ZugferdClient {
     }
     buildHttpError(action, status, errorText) {
         const upgradeHint = status === 401 || status === 402 || status === 429
-            ? ` -> Live-API-Key / Guthaben ohne Abo holen (100 Rechnungen für 10 €): ${DEFAULT_UPGRADE_URL}`
+            ? ` -> Limit reached / Free Tier. Get your production API Key at: https://e-rechnung-cloud.de`
             : "";
         return new Error(`Fehler bei ${action} (${status}): ${errorText}${upgradeHint}`);
     }
